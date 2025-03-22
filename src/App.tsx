@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import React from "react";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -14,11 +15,11 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
-// Create a client outside the component
-const queryClient = new QueryClient();
-
 // Convert to function component
 function App() {
+  // Create a client inside the component
+  const queryClient = React.useMemo(() => new QueryClient(), []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
