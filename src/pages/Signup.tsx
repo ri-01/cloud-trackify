@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +22,8 @@ const Signup = () => {
     name: '',
     type: 'vehicle',
     serialNumber: '',
+    batteryLevel: 100,
+    isCharging: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 

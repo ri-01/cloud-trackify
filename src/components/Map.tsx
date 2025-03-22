@@ -1,16 +1,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation } from 'lucide-react';
+import { MapPin, Navigation, Smartphone, Laptop, Briefcase, Dog, Battery, BatteryCharging } from 'lucide-react';
+import type { Device } from '@/types';
 
 interface MapProps {
-  devices: {
-    id: string;
-    name: string;
-    location?: {
-      latitude: number;
-      longitude: number;
-    }
-  }[];
+  devices: Device[];
   isTracking: boolean;
 }
 
@@ -54,6 +48,24 @@ const Map: React.FC<MapProps> = ({ devices, isTracking }) => {
     return () => clearInterval(interval);
   }, [isTracking]);
 
+  // Get icon for device type
+  const getDeviceIcon = (deviceType: string) => {
+    switch(deviceType.toLowerCase()) {
+      case 'personal':
+      case 'phone':
+        return Smartphone;
+      case 'laptop':
+        return Laptop;
+      case 'asset':
+        return Briefcase;
+      case 'pet':
+        return Dog;
+      case 'vehicle':
+      default:
+        return Navigation;
+    }
+  };
+
   return (
     <div className="relative w-full h-[60vh] bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
       {/* Fake map background */}
@@ -71,6 +83,8 @@ const Map: React.FC<MapProps> = ({ devices, isTracking }) => {
         const x = ((location.lng + 180) / 360) * 100;
         const y = ((90 - location.lat) / 180) * 100;
         
+        const DeviceIcon = getDeviceIcon(device.type);
+        
         return (
           <div 
             key={device.id}
@@ -81,7 +95,21 @@ const Map: React.FC<MapProps> = ({ devices, isTracking }) => {
             }}
           >
             <div className="flex flex-col items-center">
-              <Navigation className="h-8 w-8 text-blue-600 dark:text-blue-400 fill-blue-100 dark:fill-blue-900" />
+              <div className="relative">
+                <DeviceIcon className="h-8 w-8 text-blue-600 dark:text-blue-400 fill-blue-100 dark:fill-blue-900" />
+                
+                {/* Battery charging status for phones */}
+                {device.type.toLowerCase() === 'phone' || device.type.toLowerCase() === 'personal' ? (
+                  <div className="absolute -top-2 -right-2 p-1 rounded-full bg-white dark:bg-gray-800">
+                    {device.isCharging ? (
+                      <BatteryCharging className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Battery className="h-3 w-3 text-yellow-500" />
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              
               <div className="px-2 py-1 bg-white dark:bg-gray-900 rounded-md shadow-md text-xs mt-1">
                 {device.name}
               </div>

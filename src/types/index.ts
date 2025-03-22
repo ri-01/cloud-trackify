@@ -18,6 +18,9 @@ export interface Device {
     longitude: number;
     timestamp: string;
   };
+  batteryLevel?: number;
+  isCharging?: boolean;
+  icon?: string;
 }
 
 export interface LocationData {

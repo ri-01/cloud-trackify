@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import {
   Activity, 
   BarChart3, 
   Battery, 
+  BatteryCharging,
   Clock, 
   LogOut, 
   MapPin, 
@@ -14,7 +16,12 @@ import {
   PieChart, 
   Plus, 
   Settings, 
-  User 
+  User,
+  Smartphone,
+  Navigation,
+  Briefcase,
+  Dog,
+  Laptop
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -35,33 +42,40 @@ import { Link } from 'react-router-dom';
 import Map from '@/components/Map';
 import TrackerControls from '@/components/TrackerControls';
 import { toast } from 'sonner';
+import { Device } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import DeviceRegistrationForm from '@/components/DeviceRegistrationForm';
 
-const mockLocationData = [
-  { time: '00:00', speed: 0, batteryLevel: 85 },
-  { time: '02:00', speed: 0, batteryLevel: 84 },
-  { time: '04:00', speed: 0, batteryLevel: 83 },
-  { time: '06:00', speed: 15, batteryLevel: 82 },
-  { time: '08:00', speed: 65, batteryLevel: 80 },
-  { time: '10:00', speed: 25, batteryLevel: 79 },
-  { time: '12:00', speed: 35, batteryLevel: 77 },
-  { time: '14:00', speed: 0, batteryLevel: 75 },
-  { time: '16:00', speed: 45, batteryLevel: 73 },
-  { time: '18:00', speed: 30, batteryLevel: 70 },
-  { time: '20:00', speed: 20, batteryLevel: 68 },
-  { time: '22:00', speed: 0, batteryLevel: 65 },
-];
-
-const usageData = [
-  { name: 'Moving', value: 48 },
-  { name: 'Stationary', value: 52 },
-];
-
-const COLORS = ['#3b82f6', '#e2e8f0'];
-
-const mockDevices = [
-  { id: '1', name: 'Car Tracker', type: 'vehicle', serialNumber: 'VT-2023-001', status: 'online' },
-  { id: '2', name: 'Bike Tracker', type: 'vehicle', serialNumber: 'VT-2023-002', status: 'online' },
-  { id: '3', name: 'Laptop Tracker', type: 'asset', serialNumber: 'AT-2023-001', status: 'offline' },
+// Initial mock devices data
+const initialMockDevices: Device[] = [
+  { 
+    id: '1', 
+    name: 'Car Tracker', 
+    type: 'vehicle', 
+    serialNumber: 'VT-2023-001', 
+    status: 'online',
+    userId: 'user1',
+    batteryLevel: 85
+  },
+  { 
+    id: '2', 
+    name: 'Bike Tracker', 
+    type: 'vehicle', 
+    serialNumber: 'VT-2023-002', 
+    status: 'online',
+    userId: 'user1',
+    batteryLevel: 75
+  },
+  { 
+    id: '3', 
+    name: 'Laptop Tracker', 
+    type: 'laptop', 
+    serialNumber: 'AT-2023-001', 
+    status: 'offline',
+    userId: 'user1',
+    batteryLevel: 45,
+    isCharging: true
+  },
 ];
 
 const Dashboard = () => {
@@ -69,6 +83,39 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [mockDevices, setMockDevices] = useState<Device[]>(initialMockDevices);
+  const [isAddDeviceOpen, setIsAddDeviceOpen] = useState(false);
+  const [newDevice, setNewDevice] = useState({
+    name: '',
+    type: 'vehicle',
+    serialNumber: '',
+    batteryLevel: 100,
+    isCharging: false
+  });
+  
+  // Activity data state
+  const [usageData, setUsageData] = useState([
+    { name: 'Moving', value: 48 },
+    { name: 'Stationary', value: 52 },
+  ]);
+  
+  // Location data state
+  const [locationData, setLocationData] = useState([
+    { time: '00:00', speed: 0, batteryLevel: 85 },
+    { time: '02:00', speed: 0, batteryLevel: 84 },
+    { time: '04:00', speed: 0, batteryLevel: 83 },
+    { time: '06:00', speed: 15, batteryLevel: 82 },
+    { time: '08:00', speed: 65, batteryLevel: 80 },
+    { time: '10:00', speed: 25, batteryLevel: 79 },
+    { time: '12:00', speed: 35, batteryLevel: 77 },
+    { time: '14:00', speed: 0, batteryLevel: 75 },
+    { time: '16:00', speed: 45, batteryLevel: 73 },
+    { time: '18:00', speed: 30, batteryLevel: 70 },
+    { time: '20:00', speed: 20, batteryLevel: 68 },
+    { time: '22:00', speed: 0, batteryLevel: 65 },
+  ]);
+
+  const COLORS = ['#3b82f6', '#e2e8f0'];
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -82,11 +129,136 @@ const Dashboard = () => {
     }
     setIsTracking(!isTracking);
   };
+  
+  // Update analytics data in real-time when tracking
+  useEffect(() => {
+    if (!isTracking) return;
+    
+    const interval = setInterval(() => {
+      // Update speed and battery data
+      setLocationData(prev => {
+        const newData = [...prev];
+        const lastEntry = newData[newData.length - 1];
+        const currentTime = new Date();
+        
+        // Create next time entry
+        const timeStr = `${currentTime.getHours()}:${String(currentTime.getMinutes()).padStart(2, '0')}`;
+        
+        // Generate random speed - more likely to be moving when tracking
+        const newSpeed = Math.random() > 0.3 ? Math.floor(Math.random() * 60) + 5 : 0;
+        
+        // Decrease battery level slightly
+        const newBatteryLevel = Math.max(lastEntry.batteryLevel - Math.random() * 2, 0);
+        
+        // Shift array and add new entry
+        newData.shift();
+        newData.push({
+          time: timeStr,
+          speed: newSpeed,
+          batteryLevel: newBatteryLevel
+        });
+        
+        return newData;
+      });
+      
+      // Update usage data
+      setUsageData(prev => {
+        // Increase "Moving" percentage when tracking
+        const movingValue = Math.min(prev[0].value + Math.random() * 5, 90);
+        const stationaryValue = 100 - movingValue;
+        
+        return [
+          { name: 'Moving', value: movingValue },
+          { name: 'Stationary', value: stationaryValue },
+        ];
+      });
+      
+      // Update device battery levels
+      setMockDevices(prev => {
+        return prev.map(device => {
+          // Only decrease battery for devices that aren't charging
+          if (!device.isCharging && device.batteryLevel) {
+            return {
+              ...device,
+              batteryLevel: Math.max((device.batteryLevel - Math.random() * 1), 0)
+            };
+          }
+          // Increase battery for charging devices
+          else if (device.isCharging && device.batteryLevel && device.batteryLevel < 100) {
+            return {
+              ...device, 
+              batteryLevel: Math.min((device.batteryLevel + Math.random() * 1), 100)
+            };
+          }
+          return device;
+        });
+      });
+      
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isTracking]);
+
+  const handleAddDevice = () => {
+    if (!newDevice.name || !newDevice.serialNumber) {
+      toast.error('Please provide device name and serial number');
+      return;
+    }
+    
+    const id = `device-${Date.now()}`;
+    
+    const device: Device = {
+      id,
+      name: newDevice.name,
+      type: newDevice.type,
+      serialNumber: newDevice.serialNumber,
+      status: 'online',
+      userId: user?.id || 'user1',
+      batteryLevel: newDevice.batteryLevel,
+      isCharging: newDevice.isCharging
+    };
+    
+    setMockDevices(prev => [...prev, device]);
+    setIsAddDeviceOpen(false);
+    setNewDevice({
+      name: '',
+      type: 'vehicle',
+      serialNumber: '',
+      batteryLevel: 100,
+      isCharging: false
+    });
+    
+    toast.success(`Device "${newDevice.name}" added successfully`);
+  };
 
   const onlineDevices = mockDevices.filter(device => device.status === 'online');
+  
+  // Find current device for battery display
+  const currentDevice = mockDevices.find(d => d.status === 'online');
+  const batteryLevel = currentDevice?.batteryLevel || 0;
+  const isCharging = currentDevice?.isCharging || false;
+
+  // Get device type icon
+  const getDeviceIcon = (type: string) => {
+    switch(type.toLowerCase()) {
+      case 'phone':
+      case 'personal':
+        return <Smartphone className="h-5 w-5" />;
+      case 'laptop':
+        return <Laptop className="h-5 w-5" />;
+      case 'asset':
+        return <Briefcase className="h-5 w-5" />;
+      case 'pet':
+        return <Dog className="h-5 w-5" />;
+      case 'vehicle':
+      default:
+        return <Navigation className="h-5 w-5" />;
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Sidebar */}
       <div 
         className={`fixed inset-y-0 left-0 transform ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -146,6 +318,7 @@ const Dashboard = () => {
       </div>
 
       <div className="flex-1 flex flex-col">
+        {/* Header */}
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm z-20">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -173,11 +346,16 @@ const Dashboard = () => {
               <div>
                 <h1 className="text-2xl font-bold">Dashboard</h1>
                 <p className="text-gray-500 dark:text-gray-400">
-                  Monitor and track your device in real-time
+                  Monitor and track your devices in real-time
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-1">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-1"
+                  onClick={() => setIsAddDeviceOpen(true)}
+                >
                   <Plus className="h-4 w-4" />
                   Add Device
                 </Button>
@@ -206,12 +384,12 @@ const Dashboard = () => {
                       <CardDescription>Current Status</CardDescription>
                       <CardTitle className="text-xl flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                        Online
+                        {isTracking ? 'Tracking' : 'Online'}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Last updated: 2 minutes ago
+                        Last updated: {isTracking ? 'Live updating' : '2 minutes ago'}
                       </p>
                     </CardContent>
                   </Card>
@@ -220,13 +398,17 @@ const Dashboard = () => {
                     <CardHeader className="pb-2">
                       <CardDescription>Battery</CardDescription>
                       <CardTitle className="text-xl flex items-center gap-2">
-                        <Battery className="h-5 w-5 text-blue-500" />
-                        65%
+                        {isCharging ? (
+                          <BatteryCharging className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Battery className="h-5 w-5 text-blue-500" />
+                        )}
+                        {batteryLevel.toFixed(0)}%
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Estimated 2 days remaining
+                        {isCharging ? 'Currently charging' : `Estimated ${Math.round(batteryLevel / 5)} hours remaining`}
                       </p>
                     </CardContent>
                   </Card>
@@ -234,23 +416,27 @@ const Dashboard = () => {
                   <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
                     <CardHeader className="pb-2">
                       <CardDescription>Current Speed</CardDescription>
-                      <CardTitle className="text-xl">0 mph</CardTitle>
+                      <CardTitle className="text-xl">
+                        {isTracking && locationData[locationData.length - 1].speed > 0 
+                          ? `${locationData[locationData.length - 1].speed} mph` 
+                          : '0 mph'}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Status: Stationary
+                        Status: {isTracking && locationData[locationData.length - 1].speed > 0 ? 'Moving' : 'Stationary'}
                       </p>
                     </CardContent>
                   </Card>
 
                   <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
                     <CardHeader className="pb-2">
-                      <CardDescription>Location</CardDescription>
-                      <CardTitle className="text-xl">San Francisco, CA</CardTitle>
+                      <CardDescription>Devices</CardDescription>
+                      <CardTitle className="text-xl">{onlineDevices.length} Online</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Last moving: 3 hours ago
+                        {mockDevices.length - onlineDevices.length} devices offline
                       </p>
                     </CardContent>
                   </Card>
@@ -260,13 +446,15 @@ const Dashboard = () => {
                   <Card className="col-span-1 lg:col-span-2 bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
                     <CardHeader>
                       <CardTitle>Speed Tracking</CardTitle>
-                      <CardDescription>24-hour activity monitoring</CardDescription>
+                      <CardDescription>
+                        {isTracking ? 'Real-time activity monitoring' : '24-hour activity monitoring'}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart
-                            data={mockLocationData}
+                            data={locationData}
                             margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -327,13 +515,15 @@ const Dashboard = () => {
                 <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
                   <CardHeader>
                     <CardTitle>Battery Level</CardTitle>
-                    <CardDescription>24-hour battery consumption</CardDescription>
+                    <CardDescription>
+                      {isTracking ? 'Real-time battery consumption' : '24-hour battery consumption'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                          data={mockLocationData}
+                          data={locationData}
                           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -390,9 +580,24 @@ const Dashboard = () => {
                           <div key={device.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <div className="flex items-center space-x-3">
                               <div className={`w-3 h-3 rounded-full ${device.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                              <span className="font-medium">{device.name}</span>
+                              <div className="flex items-center">
+                                {getDeviceIcon(device.type)}
+                                <span className="font-medium ml-2">{device.name}</span>
+                              </div>
                             </div>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">{device.serialNumber}</span>
+                            <div className="flex items-center gap-2">
+                              {(device.type === 'phone' || device.type === 'personal' || device.type === 'laptop') && (
+                                <div className="flex items-center text-sm text-gray-500">
+                                  {device.isCharging ? (
+                                    <BatteryCharging className="h-4 w-4 text-green-500 mr-1" />
+                                  ) : (
+                                    <Battery className="h-4 w-4 mr-1" />
+                                  )}
+                                  {device.batteryLevel?.toFixed(0)}%
+                                </div>
+                              )}
+                              <span className="text-sm text-gray-500 dark:text-gray-400">{device.serialNumber}</span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -452,6 +657,31 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Add Device Dialog */}
+      <Dialog open={isAddDeviceOpen} onOpenChange={setIsAddDeviceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Device</DialogTitle>
+            <DialogDescription>
+              Enter the details of your tracking device
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <DeviceRegistrationForm device={newDevice} setDevice={setNewDevice} />
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDeviceOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddDevice}>
+              Add Device
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
