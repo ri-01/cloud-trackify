@@ -2,12 +2,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AuthState, User } from '@/types';
+import { AuthState, User, Device } from '@/types';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, device: any) => Promise<void>;
   logout: () => void;
+  // New methods for device tracking
+  getDevices: () => Device[];
+  addDevice: (device: Omit<Device, 'id' | 'userId'>) => Promise<void>;
+  startTracking: (deviceId: string) => Promise<void>;
+  stopTracking: (deviceId: string) => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -21,6 +26,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(initialState);
   const navigate = useNavigate();
+
+  // Mock devices for demonstration
+  const [devices, setDevices] = useState<Device[]>([
+    { 
+      id: '1', 
+      name: 'Car Tracker', 
+      type: 'vehicle', 
+      serialNumber: 'VT-2023-001',
+      userId: '1'
+    },
+    { 
+      id: '2', 
+      name: 'Bike Tracker', 
+      type: 'vehicle', 
+      serialNumber: 'VT-2023-002',
+      userId: '1'
+    },
+    { 
+      id: '3', 
+      name: 'Laptop Tracker', 
+      type: 'asset', 
+      serialNumber: 'AT-2023-001',
+      userId: '1'
+    }
+  ]);
 
   useEffect(() => {
     // Check for existing session on load
@@ -83,6 +113,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // In a real app, this would make a request to Supabase
       console.log('Signing up with:', { email, password, name, device });
       
+      // With Supabase, we would:
+      // 1. Create the user
+      // 2. Store the device information
+      
       // Mock successful signup
       const mockUser: User = {
         id: '1',
@@ -90,6 +124,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name,
         createdAt: new Date().toISOString(),
       };
+
+      // Add the device to our mock devices array
+      if (device && device.name && device.type && device.serialNumber) {
+        const newDevice: Device = {
+          id: `${devices.length + 1}`,
+          name: device.name,
+          type: device.type,
+          serialNumber: device.serialNumber,
+          userId: mockUser.id,
+        };
+        
+        setDevices([...devices, newDevice]);
+      }
 
       toast.success('Signup successful! Please log in.');
       navigate('/login');
@@ -112,8 +159,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     navigate('/login');
   };
 
+  // Device management functions (would connect to Supabase in a real app)
+  const getDevices = () => {
+    // In a real app, this would fetch devices from Supabase
+    return devices;
+  };
+
+  const addDevice = async (device: Omit<Device, 'id' | 'userId'>) => {
+    try {
+      // In a real app, this would add the device to Supabase
+      const newDevice: Device = {
+        ...device,
+        id: `${devices.length + 1}`,
+        userId: state.user?.id || '1',
+      };
+      
+      setDevices([...devices, newDevice]);
+      toast.success(`Device "${device.name}" added successfully`);
+    } catch (error) {
+      console.error('Add device error:', error);
+      toast.error('Failed to add device');
+      throw error;
+    }
+  };
+
+  const startTracking = async (deviceId: string) => {
+    // In a real app, this would update the device's tracking status in Supabase
+    toast.success('Tracking started');
+  };
+
+  const stopTracking = async (deviceId: string) => {
+    // In a real app, this would update the device's tracking status in Supabase
+    toast.info('Tracking stopped');
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, login, signup, logout }}>
+    <AuthContext.Provider value={{ 
+      ...state, 
+      login, 
+      signup, 
+      logout,
+      getDevices,
+      addDevice,
+      startTracking,
+      stopTracking
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,8 +32,10 @@ import {
   Cell
 } from 'recharts';
 import { Link } from 'react-router-dom';
+import Map from '@/components/Map';
+import TrackerControls from '@/components/TrackerControls';
+import { toast } from 'sonner';
 
-// Mock data
 const mockLocationData = [
   { time: '00:00', speed: 0, batteryLevel: 85 },
   { time: '02:00', speed: 0, batteryLevel: 84 },
@@ -57,17 +58,35 @@ const usageData = [
 
 const COLORS = ['#3b82f6', '#e2e8f0'];
 
+const mockDevices = [
+  { id: '1', name: 'Car Tracker', type: 'vehicle', serialNumber: 'VT-2023-001', status: 'online' },
+  { id: '2', name: 'Bike Tracker', type: 'vehicle', serialNumber: 'VT-2023-002', status: 'online' },
+  { id: '3', name: 'Laptop Tracker', type: 'asset', serialNumber: 'AT-2023-001', status: 'offline' },
+];
+
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const toggleTracking = () => {
+    if (!isTracking) {
+      toast.success('Tracking started successfully');
+    } else {
+      toast.info('Tracking stopped');
+    }
+    setIsTracking(!isTracking);
+  };
+
+  const onlineDevices = mockDevices.filter(device => device.status === 'online');
+
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
       <div 
         className={`fixed inset-y-0 left-0 transform ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -126,9 +145,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col">
-        {/* Top navigation */}
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm z-20">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -150,7 +167,6 @@ const Dashboard = () => {
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 animate-fadeIn">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -165,176 +181,274 @@ const Dashboard = () => {
                   <Plus className="h-4 w-4" />
                   Add Device
                 </Button>
-                <Button size="sm" className="gap-1">
+                <Button 
+                  size="sm" 
+                  className="gap-1"
+                  onClick={() => setActiveTab('map')}
+                >
                   <MapPin className="h-4 w-4" />
                   View Map
                 </Button>
               </div>
             </div>
 
-            {/* Status cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
-                <CardHeader className="pb-2">
-                  <CardDescription>Current Status</CardDescription>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                    Online
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Last updated: 2 minutes ago
-                  </p>
-                </CardContent>
-              </Card>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="map">Map View</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
+              </TabsList>
 
-              <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
-                <CardHeader className="pb-2">
-                  <CardDescription>Battery</CardDescription>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <Battery className="h-5 w-5 text-blue-500" />
-                    65%
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Estimated 2 days remaining
-                  </p>
-                </CardContent>
-              </Card>
+              <TabsContent value="overview" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Current Status</CardDescription>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-green-500"></div>
+                        Online
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Last updated: 2 minutes ago
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
-                <CardHeader className="pb-2">
-                  <CardDescription>Current Speed</CardDescription>
-                  <CardTitle className="text-xl">0 mph</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Status: Stationary
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Battery</CardDescription>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <Battery className="h-5 w-5 text-blue-500" />
+                        65%
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Estimated 2 days remaining
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
-                <CardHeader className="pb-2">
-                  <CardDescription>Location</CardDescription>
-                  <CardTitle className="text-xl">San Francisco, CA</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Last moving: 3 hours ago
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Current Speed</CardDescription>
+                      <CardTitle className="text-xl">0 mph</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Status: Stationary
+                      </p>
+                    </CardContent>
+                  </Card>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="col-span-1 lg:col-span-2 bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
-                <CardHeader>
-                  <CardTitle>Speed Tracking</CardTitle>
-                  <CardDescription>24-hour activity monitoring</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={mockLocationData}
-                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis 
-                          dataKey="time" 
-                          stroke="#94a3b8"
-                          tick={{ fill: '#94a3b8', fontSize: 12 }}
-                        />
-                        <YAxis 
-                          stroke="#94a3b8"
-                          tick={{ fill: '#94a3b8', fontSize: 12 }}
-                        />
-                        <Tooltip />
-                        <Area 
-                          type="monotone" 
-                          dataKey="speed" 
-                          stroke="#3b82f6" 
-                          fill="#3b82f6" 
-                          fillOpacity={0.2}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
-                <CardHeader>
-                  <CardTitle>Usage Analysis</CardTitle>
-                  <CardDescription>Moving vs stationary time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={usageData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {usageData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Battery chart */}
-            <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
-              <CardHeader>
-                <CardTitle>Battery Level</CardTitle>
-                <CardDescription>24-hour battery consumption</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={mockLocationData}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis 
-                        dataKey="time" 
-                        stroke="#94a3b8"
-                        tick={{ fill: '#94a3b8', fontSize: 12 }}
-                      />
-                      <YAxis 
-                        stroke="#94a3b8"
-                        tick={{ fill: '#94a3b8', fontSize: 12 }}
-                        domain={[0, 100]}
-                      />
-                      <Tooltip />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="batteryLevel" 
-                        stroke="#10b981" 
-                        activeDot={{ r: 8 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <Card className="bg-white/80 backdrop-blur-sm hover:shadow-lg dark:bg-gray-800/50 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Location</CardDescription>
+                      <CardTitle className="text-xl">San Francisco, CA</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Last moving: 3 hours ago
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Card className="col-span-1 lg:col-span-2 bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
+                    <CardHeader>
+                      <CardTitle>Speed Tracking</CardTitle>
+                      <CardDescription>24-hour activity monitoring</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart
+                            data={mockLocationData}
+                            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis 
+                              dataKey="time" 
+                              stroke="#94a3b8"
+                              tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            />
+                            <YAxis 
+                              stroke="#94a3b8"
+                              tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            />
+                            <Tooltip />
+                            <Area 
+                              type="monotone" 
+                              dataKey="speed" 
+                              stroke="#3b82f6" 
+                              fill="#3b82f6" 
+                              fillOpacity={0.2}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
+                    <CardHeader>
+                      <CardTitle>Usage Analysis</CardTitle>
+                      <CardDescription>Moving vs stationary time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px] flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={usageData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            >
+                              {usageData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
+                  <CardHeader>
+                    <CardTitle>Battery Level</CardTitle>
+                    <CardDescription>24-hour battery consumption</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={mockLocationData}
+                          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis 
+                            dataKey="time" 
+                            stroke="#94a3b8"
+                            tick={{ fill: '#94a3b8', fontSize: 12 }}
+                          />
+                          <YAxis 
+                            stroke="#94a3b8"
+                            tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            domain={[0, 100]}
+                          />
+                          <Tooltip />
+                          <Legend />
+                          <Line 
+                            type="monotone" 
+                            dataKey="batteryLevel" 
+                            stroke="#10b981" 
+                            activeDot={{ r: 8 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="map" className="space-y-6">
+                <TrackerControls 
+                  isTracking={isTracking} 
+                  onToggleTracking={toggleTracking} 
+                  onlineDevicesCount={onlineDevices.length}
+                />
+                
+                <Card className="overflow-hidden border-none shadow-xl bg-transparent">
+                  <CardContent className="p-0">
+                    <Map 
+                      devices={onlineDevices} 
+                      isTracking={isTracking} 
+                    />
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Device Status</CardTitle>
+                      <CardDescription>Current status of all your devices</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {mockDevices.map(device => (
+                          <div key={device.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-3 h-3 rounded-full ${device.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                              <span className="font-medium">{device.name}</span>
+                            </div>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">{device.serialNumber}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Tracking History</CardTitle>
+                      <CardDescription>Recent tracking sessions</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div>
+                              <p className="font-medium">Morning Route</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Today, 8:30 AM - 9:15 AM</p>
+                            </div>
+                            <span className="text-sm">45 min</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div>
+                              <p className="font-medium">Evening Drive</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Yesterday, 6:00 PM - 6:45 PM</p>
+                            </div>
+                            <span className="text-sm">45 min</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div>
+                              <p className="font-medium">Weekend Trip</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Saturday, 10:00 AM - 2:30 PM</p>
+                            </div>
+                            <span className="text-sm">4.5 hrs</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="reports" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Activity Reports</CardTitle>
+                    <CardDescription>View detailed reports of your device activities</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-center py-12 text-gray-500">
+                      Reports feature coming soon
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>

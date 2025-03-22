@@ -12,6 +12,12 @@ export interface Device {
   type: string;
   serialNumber: string;
   userId: string;
+  status?: 'online' | 'offline';
+  lastLocation?: {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+  };
 }
 
 export interface LocationData {
