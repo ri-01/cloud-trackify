@@ -1,6 +1,10 @@
 ## Welcome to Cloud GPS TRacker web
 
-## Project info
+## Project info through a Video Demo
+
+https://github.com/user-attachments/assets/9365e20c-80c5-4efd-ac0a-7a07162ac745
+
+
 
 **URL**: https://cloud-trackify.lovable.app/
 
