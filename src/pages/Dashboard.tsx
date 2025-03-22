@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,8 @@ import {
   Navigation,
   Briefcase,
   Dog,
-  Laptop
+  Laptop,
+  Search
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -36,7 +36,9 @@ import {
   Legend,
   PieChart as RechartsPieChart,
   Pie,
-  Cell
+  Cell,
+  BarChart,
+  Bar
 } from 'recharts';
 import { Link } from 'react-router-dom';
 import Map from '@/components/Map';
@@ -45,8 +47,8 @@ import { toast } from 'sonner';
 import { Device } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import DeviceRegistrationForm from '@/components/DeviceRegistrationForm';
+import { Input } from '@/components/ui/input';
 
-// Initial mock devices data
 const initialMockDevices: Device[] = [
   { 
     id: '1', 
@@ -93,13 +95,11 @@ const Dashboard = () => {
     isCharging: false
   });
   
-  // Activity data state
   const [usageData, setUsageData] = useState([
     { name: 'Moving', value: 48 },
     { name: 'Stationary', value: 52 },
   ]);
   
-  // Location data state
   const [locationData, setLocationData] = useState([
     { time: '00:00', speed: 0, batteryLevel: 85 },
     { time: '02:00', speed: 0, batteryLevel: 84 },
@@ -114,6 +114,20 @@ const Dashboard = () => {
     { time: '20:00', speed: 20, batteryLevel: 68 },
     { time: '22:00', speed: 0, batteryLevel: 65 },
   ]);
+
+  const [deviceStats, setDeviceStats] = useState([
+    { name: 'Car Tracker', distance: 12.5, avgSpeed: 25, maxSpeed: 65, movingTime: 4.2 },
+    { name: 'Bike Tracker', distance: 5.8, avgSpeed: 12, maxSpeed: 22, movingTime: 1.8 },
+    { name: 'Phone', distance: 3.2, avgSpeed: 5, maxSpeed: 12, movingTime: 1.2 },
+  ]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const filteredDevices = mockDevices.filter(device => 
+    device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    device.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    device.serialNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const COLORS = ['#3b82f6', '#e2e8f0'];
 
@@ -130,27 +144,21 @@ const Dashboard = () => {
     setIsTracking(!isTracking);
   };
   
-  // Update analytics data in real-time when tracking
   useEffect(() => {
     if (!isTracking) return;
     
     const interval = setInterval(() => {
-      // Update speed and battery data
       setLocationData(prev => {
         const newData = [...prev];
         const lastEntry = newData[newData.length - 1];
         const currentTime = new Date();
         
-        // Create next time entry
         const timeStr = `${currentTime.getHours()}:${String(currentTime.getMinutes()).padStart(2, '0')}`;
         
-        // Generate random speed - more likely to be moving when tracking
         const newSpeed = Math.random() > 0.3 ? Math.floor(Math.random() * 60) + 5 : 0;
         
-        // Decrease battery level slightly
         const newBatteryLevel = Math.max(lastEntry.batteryLevel - Math.random() * 2, 0);
         
-        // Shift array and add new entry
         newData.shift();
         newData.push({
           time: timeStr,
@@ -161,9 +169,7 @@ const Dashboard = () => {
         return newData;
       });
       
-      // Update usage data
       setUsageData(prev => {
-        // Increase "Moving" percentage when tracking
         const movingValue = Math.min(prev[0].value + Math.random() * 5, 90);
         const stationaryValue = 100 - movingValue;
         
@@ -173,17 +179,14 @@ const Dashboard = () => {
         ];
       });
       
-      // Update device battery levels
       setMockDevices(prev => {
         return prev.map(device => {
-          // Only decrease battery for devices that aren't charging
           if (!device.isCharging && device.batteryLevel) {
             return {
               ...device,
               batteryLevel: Math.max((device.batteryLevel - Math.random() * 1), 0)
             };
           }
-          // Increase battery for charging devices
           else if (device.isCharging && device.batteryLevel && device.batteryLevel < 100) {
             return {
               ...device, 
@@ -191,6 +194,22 @@ const Dashboard = () => {
             };
           }
           return device;
+        });
+      });
+
+      setDeviceStats(prev => {
+        return prev.map(stat => {
+          const speedIncrease = Math.random() * 2;
+          const distanceIncrease = speedIncrease * (Math.random() * 0.05);
+          const timeIncrease = Math.random() * 0.05;
+          
+          return {
+            ...stat,
+            distance: +(stat.distance + distanceIncrease).toFixed(1),
+            avgSpeed: Math.min(+(stat.avgSpeed + (Math.random() - 0.3)).toFixed(1), stat.maxSpeed),
+            maxSpeed: Math.max(stat.maxSpeed, +(stat.maxSpeed + (Math.random() > 0.8 ? Math.random() * 3 : 0)).toFixed(1)),
+            movingTime: +(stat.movingTime + timeIncrease).toFixed(1)
+          };
         });
       });
       
@@ -219,6 +238,18 @@ const Dashboard = () => {
     };
     
     setMockDevices(prev => [...prev, device]);
+    
+    setDeviceStats(prev => [
+      ...prev, 
+      { 
+        name: newDevice.name, 
+        distance: 0, 
+        avgSpeed: 0, 
+        maxSpeed: 0, 
+        movingTime: 0 
+      }
+    ]);
+    
     setIsAddDeviceOpen(false);
     setNewDevice({
       name: '',
@@ -233,12 +264,10 @@ const Dashboard = () => {
 
   const onlineDevices = mockDevices.filter(device => device.status === 'online');
   
-  // Find current device for battery display
   const currentDevice = mockDevices.find(d => d.status === 'online');
   const batteryLevel = currentDevice?.batteryLevel || 0;
   const isCharging = currentDevice?.isCharging || false;
 
-  // Get device type icon
   const getDeviceIcon = (type: string) => {
     switch(type.toLowerCase()) {
       case 'phone':
@@ -258,7 +287,6 @@ const Dashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
       <div 
         className={`fixed inset-y-0 left-0 transform ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -318,7 +346,6 @@ const Dashboard = () => {
       </div>
 
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm z-20">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -369,6 +396,69 @@ const Dashboard = () => {
                 </Button>
               </div>
             </div>
+
+            <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/50">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">My Devices</CardTitle>
+                    <CardDescription>
+                      {mockDevices.length} devices registered
+                    </CardDescription>
+                  </div>
+                  <div className="w-72">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                      <Input 
+                        placeholder="Search devices..." 
+                        className="pl-8"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredDevices.map(device => (
+                    <div 
+                      key={device.id}
+                      className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          {getDeviceIcon(device.type)}
+                          <span className={`ml-2 w-2 h-2 rounded-full ${device.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                        </div>
+                        {(device.type === 'phone' || device.type === 'personal' || device.type === 'laptop') && (
+                          <div className="text-sm">
+                            {device.isCharging ? (
+                              <BatteryCharging className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Battery className="h-4 w-4 text-yellow-500" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="font-medium text-sm mb-1">{device.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{device.serialNumber}</p>
+                      {device.batteryLevel !== undefined && (
+                        <div className="mt-2 text-xs flex items-center">
+                          <div className="bg-gray-200 dark:bg-gray-600 h-1.5 w-full rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${device.isCharging ? 'bg-green-500' : 'bg-blue-500'}`}
+                              style={{ width: `${device.batteryLevel}%` }}
+                            ></div>
+                          </div>
+                          <span className="ml-2 text-xs">{Math.round(device.batteryLevel)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6">
@@ -643,13 +733,77 @@ const Dashboard = () => {
               <TabsContent value="reports" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Activity Reports</CardTitle>
-                    <CardDescription>View detailed reports of your device activities</CardDescription>
+                    <CardTitle>Device Movement Statistics</CardTitle>
+                    <CardDescription>
+                      {isTracking ? 'Real-time movement statistics' : 'Current movement statistics for all devices'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-center py-12 text-gray-500">
-                      Reports feature coming soon
-                    </p>
+                    <div className="space-y-6">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left py-3 px-4">Device</th>
+                              <th className="text-left py-3 px-4">Distance (miles)</th>
+                              <th className="text-left py-3 px-4">Avg. Speed (mph)</th>
+                              <th className="text-left py-3 px-4">Max Speed (mph)</th>
+                              <th className="text-left py-3 px-4">Moving Time (hrs)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deviceStats.map((stat, index) => (
+                              <tr key={index} className="border-b">
+                                <td className="py-3 px-4">{stat.name}</td>
+                                <td className="py-3 px-4">{stat.distance}</td>
+                                <td className="py-3 px-4">{stat.avgSpeed}</td>
+                                <td className="py-3 px-4">{stat.maxSpeed}</td>
+                                <td className="py-3 px-4">{stat.movingTime}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h3 className="text-md font-medium mb-3">Distance Comparison</h3>
+                          <div className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={deviceStats}
+                                margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis label={{ value: 'Miles', angle: -90, position: 'insideLeft' }} />
+                                <Tooltip />
+                                <Bar dataKey="distance" fill="#3b82f6" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-md font-medium mb-3">Speed Comparison</h3>
+                          <div className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={deviceStats}
+                                margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis label={{ value: 'MPH', angle: -90, position: 'insideLeft' }} />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="avgSpeed" fill="#22c55e" name="Avg Speed" />
+                                <Bar dataKey="maxSpeed" fill="#f97316" name="Max Speed" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -658,7 +812,6 @@ const Dashboard = () => {
         </main>
       </div>
 
-      {/* Add Device Dialog */}
       <Dialog open={isAddDeviceOpen} onOpenChange={setIsAddDeviceOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
